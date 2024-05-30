@@ -2,10 +2,7 @@ import psycopg2
 from tkinter import *
 from tkinter import ttk
 from tkinter import messagebox
-from tkinter.ttk import Combobox
 from tkcalendar import Calendar
-
-
 
 # Подключение к базе данных
 def connect():
@@ -152,53 +149,62 @@ class App:
         self.root = root
         self.root.title("Управление спортивной школой")
 
+        # Настройка стиля
+        style = ttk.Style()
+        style.theme_use('clam')
+        style.configure('TButton', font=('Helvetica', 12))
+        style.configure('TLabel', font=('Helvetica', 12))
+        style.configure('TEntry', font=('Helvetica', 12))
+        style.configure('TCombobox', font=('Helvetica', 12))
+        style.configure('Treeview', font=('Helvetica', 10), rowheight=30)
+        style.configure('Treeview.Heading', font=('Helvetica', 12, 'bold'))
+
         # Создание меню
         menu = Menu(root)
         root.config(menu=menu)
 
-        students_menu = Menu(menu)
+        students_menu = Menu(menu, tearoff=0)
         menu.add_cascade(label="Группы", menu=students_menu)
         students_menu.add_command(label="Добавить", command=self.add_student_window)
-        students_menu.add_separator()
         students_menu.add_command(label="Просмотреть", command=self.view_students_window)
 
-        coaches_menu = Menu(menu)
+        coaches_menu = Menu(menu, tearoff=0)
         menu.add_cascade(label="Тренеры", menu=coaches_menu)
         coaches_menu.add_command(label="Добавить", command=self.add_coach_window)
-        coaches_menu.add_separator()
         coaches_menu.add_command(label="Просмотреть", command=self.view_coaches_window)
 
-        classes_menu = Menu(menu)
+        classes_menu = Menu(menu, tearoff=0)
         menu.add_cascade(label="Занятия", menu=classes_menu)
         classes_menu.add_command(label="Добавить", command=self.add_class_window)
-        classes_menu.add_separator()
         classes_menu.add_command(label="Просмотреть", command=self.view_classes_window)
 
-        schedule_menu = Menu(menu)
+        schedule_menu = Menu(menu, tearoff=0)
         menu.add_cascade(label="Расписание", menu=schedule_menu)
         schedule_menu.add_command(label="Добавить", command=self.add_schedule_window)
-        schedule_menu.add_separator()
         schedule_menu.add_command(label="Просмотреть", command=self.view_schedule_window)
+
+        # Отображение расписания на главном экране
+        self.view_schedule_window()
 
     def add_student_window(self):
         self.clear_window()
 
-        self.first_name_label = Label(self.root, text="Название класса")
+        self.first_name_label = Label(self.root, text="Имя")
         self.first_name_label.pack()
         self.first_name_entry = Entry(self.root)
         self.first_name_entry.pack()
 
-        self.last_name_label = Label(self.root, text="Количество студентов")
+        self.last_name_label = Label(self.root, text="Фамилия")
         self.last_name_label.pack()
         self.last_name_entry = Entry(self.root)
         self.last_name_entry.pack()
 
-        self.dob_label = Label(self.root, text="Приоритет")
+        self.dob_label = Label(self.root, text="Дата рождения")
         self.dob_label.pack()
         self.dob_entry = Entry(self.root)
         self.dob_entry.pack()
 
-        self.enrollment_label = Label(self.root, text="доп.описание")
+        self.enrollment_label = Label(self.root, text="Дата зачисления")
         self.enrollment_label.pack()
         self.enrollment_entry = Entry(self.root)
         self.enrollment_entry.pack()
@@ -217,17 +223,20 @@ class App:
         add_student(first_name, last_name, date_of_birth, enrollment_date)
         messagebox.showinfo("Успех", "Студент добавлен успешно!")
 
-        #Тест
-
-
     def view_students_window(self):
         self.clear_window()
 
-        self.students_list = Listbox(self.root)
-        self.students_list.pack(fill=BOTH, expand=1)
+        self.students_tree = ttk.Treeview(self.root, columns=("Имя", "Фамилия", "Дата рождения", "Дата зачисления"), style="Treeview")
+        self.students_tree.heading("#0", text="ID")
+        self.students_tree.heading("Имя", text="Имя")
+        self.students_tree.heading("Фамилия", text="Фамилия")
+        self.students_tree.heading("Дата рождения", text="Дата рождения")
+        self.students_tree.heading("Дата зачисления", text="Дата зачисления")
+        self.students_tree.pack(fill=BOTH, expand=1)
+
         students = get_students()
         for student in students:
-            self.students_list.insert(END, student)
+            self.students_tree.insert("", "end", text=student[0], values=(student[1], student[2], student[3], student[4]))
 
         self.back_button = Button(self.root, text="Вернуться в главное меню", command=self.show_main_menu)
         self.back_button.pack()
@@ -266,11 +275,16 @@ class App:
     def view_coaches_window(self):
         self.clear_window()
 
-        self.coaches_list = Listbox(self.root)
-        self.coaches_list.pack(fill=BOTH, expand=1)
+        self.coaches_tree = ttk.Treeview(self.root, columns=("Имя", "Фамилия", "Специальность"), style="Treeview")
+        self.coaches_tree.heading("#0", text="ID")
+        self.coaches_tree.heading("Имя", text="Имя")
+        self.coaches_tree.heading("Фамилия", text="Фамилия")
+        self.coaches_tree.heading("Специальность", text="Специальность")
+        self.coaches_tree.pack(fill=BOTH, expand=1)
+
         coaches = get_coaches()
         for coach in coaches:
-            self.coaches_list.insert(END, coach)
+            self.coaches_tree.insert("", "end", text=coach[0], values=(coach[1], coach[2], coach[3]))
 
         self.back_button = Button(self.root, text="Вернуться в главное меню", command=self.show_main_menu)
         self.back_button.pack()
@@ -303,11 +317,15 @@ class App:
     def view_classes_window(self):
         self.clear_window()
 
-        self.classes_list = Listbox(self.root)
-        self.classes_list.pack(fill=BOTH, expand=1)
+        self.classes_tree = ttk.Treeview(self.root, columns=("Название занятия", "Тренер"), style="Treeview")
+        self.classes_tree.heading("#0", text="ID")
+        self.classes_tree.heading("Название занятия", text="Название занятия")
+        self.classes_tree.heading("Тренер", text="Тренер")
+        self.classes_tree.pack(fill=BOTH, expand=1)
+
         classes = get_classes()
         for cls in classes:
-            self.classes_list.insert(END, cls)
+            self.classes_tree.insert("", "end", text=cls[0], values=(cls[1], f"{cls[2]} {cls[3]}"))
 
         self.back_button = Button(self.root, text="Вернуться в главное меню", command=self.show_main_menu)
         self.back_button.pack()
@@ -317,12 +335,12 @@ class App:
 
         self.class_label = Label(self.root, text="Занятие")
         self.class_label.pack()
-        self.class_combobox = Combobox(self.root, values=self.get_classes_list())
+        self.class_combobox = ttk.Combobox(self.root, values=self.get_classes_list(), style="TCombobox")
         self.class_combobox.pack()
 
         self.student_label = Label(self.root, text="Студент")
         self.student_label.pack()
-        self.student_combobox = Combobox(self.root, values=self.get_students_list())
+        self.student_combobox = ttk.Combobox(self.root, values=self.get_students_list(), style="TCombobox")
         self.student_combobox.pack()
 
         self.class_date_label = Label(self.root, text="Дата занятия")
@@ -332,7 +350,7 @@ class App:
 
         self.class_time_label = Label(self.root, text="Время занятия")
         self.class_time_label.pack()
-        self.time_combobox = Combobox(self.root, values=["1 урок", "2 урок", "3 урок", "4 урок", "5 урок", "6 урок", "7 урок", "8 урок", "9 урок", "10 урок"])
+        self.time_combobox = ttk.Combobox(self.root, values=["1 урок", "2 урок", "3 урок", "4 урок", "5 урок", "6 урок", "7 урок", "8 урок", "9 урок", "10 урок"], style="TCombobox")
         self.time_combobox.pack()
 
         self.add_button = Button(self.root, text="Добавить расписание", command=self.add_schedule)
@@ -400,7 +418,7 @@ class App:
 
         schedules = get_schedule()
         for schedule in schedules:
-            self.schedule_tree.insert("", "end", text=schedule[0], values=(schedule[1], schedule[2] + " " + schedule[3], schedule[4], schedule[5]))
+            self.schedule_tree.insert("", "end", text=schedule[0], values=(schedule[1], f"{schedule[2]} {schedule[3]}", schedule[4], schedule[5]))
 
         self.back_button = Button(self.root, text="Вернуться в главное меню", command=self.show_main_menu)
         self.back_button.pack()
@@ -411,9 +429,9 @@ class App:
 
     def show_main_menu(self):
         self.clear_window()
-        self.__init__(self.root)
+        self.view_schedule_window()
 
 root = Tk()
-root.geometry("1300x600")  # Устанавливаем размер окна 800x600 пикселей
+root.geometry("1300x600")  # Устанавливаем размер окна 1300x600 пикселей
 app = App(root)
 root.mainloop()
