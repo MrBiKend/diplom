@@ -1,0 +1,46 @@
+-- Создание таблицы студентов
+CREATE TABLE IF NOT EXISTS students (
+    student_id SERIAL PRIMARY KEY,
+    first_name VARCHAR(100) NOT NULL,
+    last_name VARCHAR(100) NOT NULL,
+    date_of_birth DATE NOT NULL,
+    enrollment_date DATE NOT NULL
+);
+
+-- Создание таблицы тренеров
+CREATE TABLE IF NOT EXISTS coaches (
+    coach_id SERIAL PRIMARY KEY,
+    first_name VARCHAR(100) NOT NULL,
+    last_name VARCHAR(100) NOT NULL,
+    specialty VARCHAR(100) NOT NULL
+);
+
+-- Создание таблицы занятий
+CREATE TABLE IF NOT EXISTS classes (
+    class_id SERIAL PRIMARY KEY,
+    class_name VARCHAR(100) NOT NULL,
+    coach_id INT REFERENCES coaches(coach_id) ON DELETE CASCADE
+);
+
+-- Создание таблицы расписания
+CREATE TABLE IF NOT EXISTS schedule (
+    schedule_id SERIAL PRIMARY KEY,
+    class_id INT REFERENCES classes(class_id) ON DELETE CASCADE,
+    student_id INT REFERENCES students(student_id) ON DELETE CASCADE,
+    class_date DATE NOT NULL,
+    class_time VARCHAR(20) NOT NULL
+);
+
+-- Создание таблицы групп
+CREATE TABLE IF NOT EXISTS groups (
+    group_id SERIAL PRIMARY KEY,
+    group_name VARCHAR(100) NOT NULL
+);
+
+-- Создание таблицы записей в дневнике
+CREATE TABLE IF NOT EXISTS diaries (
+    entry_id SERIAL PRIMARY KEY,
+    group_id INT REFERENCES groups(group_id) ON DELETE CASCADE,
+    entry_date DATE NOT NULL,
+    entry_content TEXT NOT NULL
+);
