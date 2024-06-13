@@ -1,22 +1,20 @@
 import psycopg2
-from tkinter import *
-from tkinter import ttk
-from tkinter import messagebox
+from customtkinter import *
+import customtkinter as ctk
+from tkinter import messagebox, ttk
 from tkcalendar import Calendar
 
 # Подключение к базе данных
 def connect():
     return psycopg2.connect(
-        database="sports_school",
+        database="duss",
         user="postgres",
-        password="admin",
+        password="1212",
         host="localhost",
         port="5432"
     )
 
 # Функции для работы с базой данных
-
-# Функции для работы со студентами
 def add_student(first_name, last_name, date_of_birth, enrollment_date):
     conn = connect()
     cur = conn.cursor()
@@ -48,7 +46,6 @@ def delete_student(student_id):
     conn.commit()
     conn.close()
 
-# Функции для работы с тренерами
 def add_coach(first_name, last_name, specialty):
     conn = connect()
     cur = conn.cursor()
@@ -80,7 +77,6 @@ def delete_coach(coach_id):
     conn.commit()
     conn.close()
 
-# Функции для работы с занятиями
 def add_class(class_name, coach_id):
     conn = connect()
     cur = conn.cursor()
@@ -111,14 +107,16 @@ def delete_class(class_id):
     conn.commit()
     conn.close()
 
-# Функции для работы с расписанием
 def add_schedule(class_id, student_id, class_date, class_time):
-    conn = connect()
-    cur = conn.cursor()
-    cur.execute("INSERT INTO schedule (class_id, student_id, class_date, class_time) VALUES (%s, %s, %s, %s)",
-                (class_id, student_id, class_date, class_time))
-    conn.commit()
-    conn.close()
+    if check_coach_availability(class_id, class_date, class_time):
+        conn = connect()
+        cur = conn.cursor()
+        cur.execute("INSERT INTO schedule (class_id, student_id, class_date, class_time) VALUES (%s, %s, %s, %s)",
+                    (class_id, student_id, class_date, class_time))
+        conn.commit()
+        conn.close()
+    else:
+        messagebox.showerror("Ошибка", "Тренер занят в это время.")
 
 def get_schedule():
     conn = connect()
@@ -129,12 +127,15 @@ def get_schedule():
     return rows
 
 def update_schedule(schedule_id, class_id, student_id, class_date, class_time):
-    conn = connect()
-    cur = conn.cursor()
-    cur.execute("UPDATE schedule SET class_id=%s, student_id=%s, class_date=%s, class_time=%s WHERE schedule_id=%s",
-                (class_id, student_id, class_date, class_time, schedule_id))
-    conn.commit()
-    conn.close()
+    if check_coach_availability(class_id, class_date, class_time):
+        conn = connect()
+        cur = conn.cursor()
+        cur.execute("UPDATE schedule SET class_id=%s, student_id=%s, class_date=%s, class_time=%s WHERE schedule_id=%s",
+                    (class_id, student_id, class_date, class_time, schedule_id))
+        conn.commit()
+        conn.close()
+    else:
+        messagebox.showerror("Ошибка", "Тренер занят в это время.")
 
 def delete_schedule(schedule_id):
     conn = connect()
@@ -143,77 +144,173 @@ def delete_schedule(schedule_id):
     conn.commit()
     conn.close()
 
-# Пример интерфейса на Tkinter
+def check_coach_availability(class_id, class_date, class_time):
+    conn = connect()
+    cur = conn.cursor()
+    cur.execute("SELECT coaches.coach_id FROM schedule "
+                "JOIN classes ON schedule.class_id = classes.class_id "
+                "JOIN coaches ON classes.coach_id = coaches.coach_id "
+                "WHERE classes.class_id=%s AND schedule.class_date=%s AND schedule.class_time=%s",
+                (class_id, class_date, class_time))
+    result = cur.fetchone()
+    conn.close()
+    return result is None
+
+def add_group(group_name):
+    conn = connect()
+    cur = conn.cursor()
+    cur.execute("INSERT INTO groups (group_name) VALUES (%s)", (group_name,))
+    conn.commit()
+    conn.close()
+
+def get_groups():
+    conn = connect()
+    cur = conn.cursor()
+    cur.execute("SELECT * FROM groups")
+    rows = cur.fetchall()
+    conn.close()
+    return rows
+
+def update_group(group_id, group_name):
+    conn = connect()
+    cur = conn.cursor()
+    cur.execute("UPDATE groups SET group_name=%s WHERE group_id=%s", (group_name, group_id))
+    conn.commit()
+    conn.close()
+
+def delete_group(group_id):
+    conn = connect()
+    cur = conn.cursor()
+    cur.execute("DELETE FROM groups WHERE group_id=%s", (group_id,))
+    conn.commit()
+    conn.close()
+
+def add_diary_entry(group_id, entry_date, entry_content):
+    conn = connect()
+    cur = conn.cursor()
+    cur.execute("INSERT INTO diaries (group_id, entry_date, entry_content) VALUES (%s, %s, %s)",
+                (group_id, entry_date, entry_content))
+    conn.commit()
+    conn.close()
+
+def get_diary_entries(group_id):
+    conn = connect()
+    cur = conn.cursor()
+    cur.execute("SELECT * FROM diaries WHERE group_id=%s", (group_id,))
+    rows = cur.fetchall()
+    conn.close()
+    return rows
+
+def update_diary_entry(entry_id, entry_date, entry_content):
+    conn = connect()
+    cur = conn.cursor()
+    cur.execute("UPDATE diaries SET entry_date=%s, entry_content=%s WHERE entry_id=%s",
+                (entry_date, entry_content, entry_id))
+    conn.commit()
+    conn.close()
+
+def delete_diary_entry(entry_id):
+    conn = connect()
+    cur = conn.cursor()
+    cur.execute("DELETE FROM diaries WHERE entry_id=%s", (entry_id,))
+    conn.commit()
+    conn.close()
+
+# Пример интерфейса на customtkinter
 class App:
     def __init__(self, root):
         self.root = root
         self.root.title("Управление спортивной школой")
 
         # Настройка стиля
-        style = ttk.Style()
-        style.theme_use('clam')
-        style.configure('TButton', font=('Helvetica', 12))
-        style.configure('TLabel', font=('Helvetica', 12))
-        style.configure('TEntry', font=('Helvetica', 12))
-        style.configure('TCombobox', font=('Helvetica', 12))
-        style.configure('Treeview', font=('Helvetica', 10), rowheight=30)
-        style.configure('Treeview.Heading', font=('Helvetica', 12, 'bold'))
+        ctk.set_appearance_mode("dark")
+        ctk.set_default_color_theme("blue")
 
-        # Создание меню
-        menu = Menu(root)
-        root.config(menu=menu)
+        self.main_frame = ctk.CTkFrame(self.root)
+        self.main_frame.pack(fill=BOTH, expand=True)
 
-        students_menu = Menu(menu, tearoff=0)
-        menu.add_cascade(label="Группы", menu=students_menu)
-        students_menu.add_command(label="Добавить", command=self.add_student_window)
-        students_menu.add_command(label="Просмотреть", command=self.view_students_window)
+        self.style = ttk.Style()
+        self.style.theme_use('clam')
+        self.style.configure('Treeview', background='#2E2E2E', foreground='white', rowheight=25, fieldbackground='#2E2E2E')
+        self.style.map('Treeview', background=[('selected', '#347083')])
 
-        coaches_menu = Menu(menu, tearoff=0)
-        menu.add_cascade(label="Тренеры", menu=coaches_menu)
-        coaches_menu.add_command(label="Добавить", command=self.add_coach_window)
-        coaches_menu.add_command(label="Просмотреть", command=self.view_coaches_window)
+        self.login_window()
 
-        classes_menu = Menu(menu, tearoff=0)
-        menu.add_cascade(label="Занятия", menu=classes_menu)
-        classes_menu.add_command(label="Добавить", command=self.add_class_window)
-        classes_menu.add_command(label="Просмотреть", command=self.view_classes_window)
+    def login_window(self):
+        self.clear_window()
 
-        schedule_menu = Menu(menu, tearoff=0)
-        menu.add_cascade(label="Расписание", menu=schedule_menu)
-        schedule_menu.add_command(label="Добавить", command=self.add_schedule_window)
-        schedule_menu.add_command(label="Просмотреть", command=self.view_schedule_window)
+        self.username_label = ctk.CTkLabel(self.main_frame, text="Логин")
+        self.username_label.pack(pady=10)
+        self.username_entry = ctk.CTkEntry(self.main_frame)
+        self.username_entry.pack(pady=10)
 
-        # Отображение расписания на главном экране
-        self.view_schedule_window()
+        self.password_label = ctk.CTkLabel(self.main_frame, text="Пароль")
+        self.password_label.pack(pady=10)
+        self.password_entry = ctk.CTkEntry(self.main_frame, show="*")
+        self.password_entry.pack(pady=10)
+
+        self.login_button = ctk.CTkButton(self.main_frame, text="Войти", command=self.check_login)
+        self.login_button.pack(pady=10)
+
+    def check_login(self):
+        username = self.username_entry.get()
+        password = self.password_entry.get()
+
+        if username == "director" and password == "1212":
+            self.main_menu()
+        else:
+            messagebox.showerror("Ошибка", "Неправильный логин или пароль")
+
+    def main_menu(self):
+        self.clear_window()
+
+        self.menu_frame = ctk.CTkFrame(self.main_frame)
+        self.menu_frame.pack(fill=BOTH, expand=True, padx=20, pady=20)
+
+        self.students_button = ctk.CTkButton(self.menu_frame, text="Студенты", command=self.view_students_window)
+        self.students_button.pack(pady=10)
+
+        self.coaches_button = ctk.CTkButton(self.menu_frame, text="Тренеры", command=self.view_coaches_window)
+        self.coaches_button.pack(pady=10)
+
+        self.classes_button = ctk.CTkButton(self.menu_frame, text="Занятия", command=self.view_classes_window)
+        self.classes_button.pack(pady=10)
+
+        self.schedule_button = ctk.CTkButton(self.menu_frame, text="Расписание", command=self.schedule_menu)
+        self.schedule_button.pack(pady=10)
+
+    def clear_window(self):
+        for widget in self.main_frame.winfo_children():
+            widget.destroy()
 
     def add_student_window(self):
         self.clear_window()
 
-        self.first_name_label = Label(self.root, text="Имя")
-        self.first_name_label.pack()
-        self.first_name_entry = Entry(self.root)
-        self.first_name_entry.pack()
+        self.first_name_label = ctk.CTkLabel(self.main_frame, text="Имя")
+        self.first_name_label.pack(pady=10)
+        self.first_name_entry = ctk.CTkEntry(self.main_frame)
+        self.first_name_entry.pack(pady=10)
 
-        self.last_name_label = Label(self.root, text="Фамилия")
-        self.last_name_label.pack()
-        self.last_name_entry = Entry(self.root)
-        self.last_name_entry.pack()
+        self.last_name_label = ctk.CTkLabel(self.main_frame, text="Фамилия")
+        self.last_name_label.pack(pady=10)
+        self.last_name_entry = ctk.CTkEntry(self.main_frame)
+        self.last_name_entry.pack(pady=10)
 
-        self.dob_label = Label(self.root, text="Дата рождения")
-        self.dob_label.pack()
-        self.dob_entry = Entry(self.root)
-        self.dob_entry.pack()
+        self.dob_label = ctk.CTkLabel(self.main_frame, text="Дата рождения")
+        self.dob_label.pack(pady=10)
+        self.dob_entry = ctk.CTkEntry(self.main_frame)
+        self.dob_entry.pack(pady=10)
 
-        self.enrollment_label = Label(self.root, text="Дата зачисления")
-        self.enrollment_label.pack()
-        self.enrollment_entry = Entry(self.root)
-        self.enrollment_entry.pack()
+        self.enrollment_label = ctk.CTkLabel(self.main_frame, text="Дата зачисления")
+        self.enrollment_label.pack(pady=10)
+        self.enrollment_entry = ctk.CTkEntry(self.main_frame)
+        self.enrollment_entry.pack(pady=10)
 
-        self.add_button = Button(self.root, text="Добавить студента", command=self.add_student)
-        self.add_button.pack()
+        self.add_button = ctk.CTkButton(self.main_frame, text="Добавить студента", command=self.add_student)
+        self.add_button.pack(pady=10)
 
-        self.back_button = Button(self.root, text="Вернуться в главное меню", command=self.show_main_menu)
-        self.back_button.pack()
+        self.back_button = ctk.CTkButton(self.main_frame, text="Вернуться в главное меню", command=self.main_menu)
+        self.back_button.pack(pady=10)
 
     def add_student(self):
         first_name = self.first_name_entry.get()
@@ -226,44 +323,99 @@ class App:
     def view_students_window(self):
         self.clear_window()
 
-        self.students_tree = ttk.Treeview(self.root, columns=("Имя", "Фамилия", "Дата рождения", "Дата зачисления"), style="Treeview")
-        self.students_tree.heading("#0", text="ID")
+        self.students_tree = ttk.Treeview(self.main_frame, columns=("Имя", "Фамилия", "Дата рождения", "Дата зачисления"), show="headings")
         self.students_tree.heading("Имя", text="Имя")
         self.students_tree.heading("Фамилия", text="Фамилия")
         self.students_tree.heading("Дата рождения", text="Дата рождения")
         self.students_tree.heading("Дата зачисления", text="Дата зачисления")
-        self.students_tree.pack(fill=BOTH, expand=1)
+        self.students_tree.pack(fill=BOTH, expand=True)
+
+        self.students_tree.bind("<Double-1>", self.on_student_double_click)
 
         students = get_students()
         for student in students:
-            self.students_tree.insert("", "end", text=student[0], values=(student[1], student[2], student[3], student[4]))
+            self.students_tree.insert("", "end", values=(student[1], student[2], student[3], student[4]))
 
-        self.back_button = Button(self.root, text="Вернуться в главное меню", command=self.show_main_menu)
-        self.back_button.pack()
+        self.back_button = ctk.CTkButton(self.main_frame, text="Вернуться в главное меню", command=self.main_menu)
+        self.back_button.pack(pady=10)
+
+    def on_student_double_click(self, event):
+        item = self.students_tree.selection()[0]
+        student_data = self.students_tree.item(item, "values")
+        self.edit_student_window(student_data)
+
+    def edit_student_window(self, student_data):
+        self.clear_window()
+
+        self.first_name_label = ctk.CTkLabel(self.main_frame, text="Имя")
+        self.first_name_label.pack(pady=10)
+        self.first_name_entry = ctk.CTkEntry(self.main_frame)
+        self.first_name_entry.insert(0, student_data[0])
+        self.first_name_entry.pack(pady=10)
+
+        self.last_name_label = ctk.CTkLabel(self.main_frame, text="Фамилия")
+        self.last_name_label.pack(pady=10)
+        self.last_name_entry = ctk.CTkEntry(self.main_frame)
+        self.last_name_entry.insert(0, student_data[1])
+        self.last_name_entry.pack(pady=10)
+
+        self.dob_label = ctk.CTkLabel(self.main_frame, text="Дата рождения")
+        self.dob_label.pack(pady=10)
+        self.dob_entry = ctk.CTkEntry(self.main_frame)
+        self.dob_entry.insert(0, student_data[2])
+        self.dob_entry.pack(pady=10)
+
+        self.enrollment_label = ctk.CTkLabel(self.main_frame, text="Дата зачисления")
+        self.enrollment_label.pack(pady=10)
+        self.enrollment_entry = ctk.CTkEntry(self.main_frame)
+        self.enrollment_entry.insert(0, student_data[3])
+        self.enrollment_entry.pack(pady=10)
+
+        self.update_button = ctk.CTkButton(self.main_frame, text="Обновить студента", command=lambda: self.update_student(student_data[0]))
+        self.update_button.pack(pady=10)
+
+        self.delete_button = ctk.CTkButton(self.main_frame, text="Удалить студента", command=lambda: self.delete_student(student_data[0]))
+        self.delete_button.pack(pady=10)
+
+        self.back_button = ctk.CTkButton(self.main_frame, text="Вернуться в главное меню", command=self.main_menu)
+        self.back_button.pack(pady=10)
+
+    def update_student(self, student_id):
+        first_name = self.first_name_entry.get()
+        last_name = self.last_name_entry.get()
+        date_of_birth = self.dob_entry.get()
+        enrollment_date = self.enrollment_entry.get()
+        update_student(student_id, first_name, last_name, date_of_birth, enrollment_date)
+        messagebox.showinfo("Успех", "Студент обновлен успешно!")
+
+    def delete_student(self, student_id):
+        delete_student(student_id)
+        messagebox.showinfo("Успех", "Студент удален успешно!")
+        self.main_menu()
 
     def add_coach_window(self):
         self.clear_window()
 
-        self.first_name_label = Label(self.root, text="Имя")
-        self.first_name_label.pack()
-        self.first_name_entry = Entry(self.root)
-        self.first_name_entry.pack()
+        self.first_name_label = ctk.CTkLabel(self.main_frame, text="Имя")
+        self.first_name_label.pack(pady=10)
+        self.first_name_entry = ctk.CTkEntry(self.main_frame)
+        self.first_name_entry.pack(pady=10)
 
-        self.last_name_label = Label(self.root, text="Фамилия")
-        self.last_name_label.pack()
-        self.last_name_entry = Entry(self.root)
-        self.last_name_entry.pack()
+        self.last_name_label = ctk.CTkLabel(self.main_frame, text="Фамилия")
+        self.last_name_label.pack(pady=10)
+        self.last_name_entry = ctk.CTkEntry(self.main_frame)
+        self.last_name_entry.pack(pady=10)
 
-        self.specialty_label = Label(self.root, text="Специальность")
-        self.specialty_label.pack()
-        self.specialty_entry = Entry(self.root)
-        self.specialty_entry.pack()
+        self.specialty_label = ctk.CTkLabel(self.main_frame, text="Специальность")
+        self.specialty_label.pack(pady=10)
+        self.specialty_entry = ctk.CTkEntry(self.main_frame)
+        self.specialty_entry.pack(pady=10)
 
-        self.add_button = Button(self.root, text="Добавить тренера", command=self.add_coach)
-        self.add_button.pack()
+        self.add_button = ctk.CTkButton(self.main_frame, text="Добавить тренера", command=self.add_coach)
+        self.add_button.pack(pady=10)
 
-        self.back_button = Button(self.root, text="Вернуться в главное меню", command=self.show_main_menu)
-        self.back_button.pack()
+        self.back_button = ctk.CTkButton(self.main_frame, text="Вернуться в главное меню", command=self.main_menu)
+        self.back_button.pack(pady=10)
 
     def add_coach(self):
         first_name = self.first_name_entry.get()
@@ -275,38 +427,86 @@ class App:
     def view_coaches_window(self):
         self.clear_window()
 
-        self.coaches_tree = ttk.Treeview(self.root, columns=("Имя", "Фамилия", "Специальность"), style="Treeview")
-        self.coaches_tree.heading("#0", text="ID")
+        self.coaches_tree = ttk.Treeview(self.main_frame, columns=("Имя", "Фамилия", "Специальность"), show="headings")
         self.coaches_tree.heading("Имя", text="Имя")
         self.coaches_tree.heading("Фамилия", text="Фамилия")
         self.coaches_tree.heading("Специальность", text="Специальность")
-        self.coaches_tree.pack(fill=BOTH, expand=1)
+        self.coaches_tree.pack(fill=BOTH, expand=True)
+
+        self.coaches_tree.bind("<Double-1>", self.on_coach_double_click)
 
         coaches = get_coaches()
         for coach in coaches:
-            self.coaches_tree.insert("", "end", text=coach[0], values=(coach[1], coach[2], coach[3]))
+            self.coaches_tree.insert("", "end", values=(coach[1], coach[2], coach[3]))
 
-        self.back_button = Button(self.root, text="Вернуться в главное меню", command=self.show_main_menu)
-        self.back_button.pack()
+        self.back_button = ctk.CTkButton(self.main_frame, text="Вернуться в главное меню", command=self.main_menu)
+        self.back_button.pack(pady=10)
+
+    def on_coach_double_click(self, event):
+        item = self.coaches_tree.selection()[0]
+        coach_data = self.coaches_tree.item(item, "values")
+        self.edit_coach_window(coach_data)
+
+    def edit_coach_window(self, coach_data):
+        self.clear_window()
+
+        self.first_name_label = ctk.CTkLabel(self.main_frame, text="Имя")
+        self.first_name_label.pack(pady=10)
+        self.first_name_entry = ctk.CTkEntry(self.main_frame)
+        self.first_name_entry.insert(0, coach_data[0])
+        self.first_name_entry.pack(pady=10)
+
+        self.last_name_label = ctk.CTkLabel(self.main_frame, text="Фамилия")
+        self.last_name_label.pack(pady=10)
+        self.last_name_entry = ctk.CTkEntry(self.main_frame)
+        self.last_name_entry.insert(0, coach_data[1])
+        self.last_name_entry.pack(pady=10)
+
+        self.specialty_label = ctk.CTkLabel(self.main_frame, text="Специальность")
+        self.specialty_label.pack(pady=10)
+        self.specialty_entry = ctk.CTkEntry(self.main_frame)
+        self.specialty_entry.insert(0, coach_data[2])
+        self.specialty_entry.pack(pady=10)
+
+        self.update_button = ctk.CTkButton(self.main_frame, text="Обновить тренера", command=lambda: self.update_coach(coach_data[0]))
+        self.update_button.pack(pady=10)
+
+        self.delete_button = ctk.CTkButton(self.main_frame, text="Удалить тренера", command=lambda: self.delete_coach(coach_data[0]))
+        self.delete_button.pack(pady=10)
+
+        self.back_button = ctk.CTkButton(self.main_frame, text="Вернуться в главное меню", command=self.main_menu)
+        self.back_button.pack(pady=10)
+
+    def update_coach(self, coach_id):
+        first_name = self.first_name_entry.get()
+        last_name = self.last_name_entry.get()
+        specialty = self.specialty_entry.get()
+        update_coach(coach_id, first_name, last_name, specialty)
+        messagebox.showinfo("Успех", "Тренер обновлен успешно!")
+
+    def delete_coach(self, coach_id):
+        delete_coach(coach_id)
+        messagebox.showinfo("Успех", "Тренер удален успешно!")
+        self.main_menu()
 
     def add_class_window(self):
         self.clear_window()
 
-        self.class_name_label = Label(self.root, text="Название занятия")
-        self.class_name_label.pack()
-        self.class_name_entry = Entry(self.root)
-        self.class_name_entry.pack()
+        self.class_name_label = ctk.CTkLabel(self.main_frame, text="Название занятия")
+        self.class_name_label.pack(pady=10)
+        self.class_name_entry = ctk.CTkEntry(self.main_frame)
+        self.class_name_entry.pack(pady=10)
 
-        self.coach_id_label = Label(self.root, text="ID тренера")
-        self.coach_id_label.pack()
-        self.coach_id_entry = Entry(self.root)
-        self.coach_id_entry.pack()
+        self.coach_id_label = ctk.CTkLabel(self.main_frame, text="ID тренера")
+        self.coach_id_label.pack(pady=10)
+        self.coach_id_entry = ctk.CTkEntry(self.main_frame)
+        self.coach_id_entry.pack(pady=10)
 
-        self.add_button = Button(self.root, text="Добавить занятие", command=self.add_class)
-        self.add_button.pack()
+        self.add_button = ctk.CTkButton(self.main_frame, text="Добавить занятие", command=self.add_class)
+        self.add_button.pack(pady=10)
 
-        self.back_button = Button(self.root, text="Вернуться в главное меню", command=self.show_main_menu)
-        self.back_button.pack()
+        self.back_button = ctk.CTkButton(self.main_frame, text="Вернуться в главное меню", command=self.main_menu)
+        self.back_button.pack(pady=10)
 
     def add_class(self):
         class_name = self.class_name_entry.get()
@@ -317,76 +517,145 @@ class App:
     def view_classes_window(self):
         self.clear_window()
 
-        self.classes_tree = ttk.Treeview(self.root, columns=("Название занятия", "Тренер"), style="Treeview")
-        self.classes_tree.heading("#0", text="ID")
+        self.classes_tree = ttk.Treeview(self.main_frame, columns=("Название занятия", "Тренер"), show="headings")
         self.classes_tree.heading("Название занятия", text="Название занятия")
         self.classes_tree.heading("Тренер", text="Тренер")
-        self.classes_tree.pack(fill=BOTH, expand=1)
+        self.classes_tree.pack(fill=BOTH, expand=True)
+
+        self.classes_tree.bind("<Double-1>", self.on_class_double_click)
 
         classes = get_classes()
         for cls in classes:
-            self.classes_tree.insert("", "end", text=cls[0], values=(cls[1], f"{cls[2]} {cls[3]}"))
+            self.classes_tree.insert("", "end", values=(cls[1], f"{cls[2]} {cls[3]}"))
 
-        self.back_button = Button(self.root, text="Вернуться в главное меню", command=self.show_main_menu)
-        self.back_button.pack()
+        self.back_button = ctk.CTkButton(self.main_frame, text="Вернуться в главное меню", command=self.main_menu)
+        self.back_button.pack(pady=10)
+
+    def on_class_double_click(self, event):
+        item = self.classes_tree.selection()[0]
+        class_data = self.classes_tree.item(item, "values")
+        self.edit_class_window(class_data)
+
+    def edit_class_window(self, class_data):
+        self.clear_window()
+
+        self.class_name_label = ctk.CTkLabel(self.main_frame, text="Название занятия")
+        self.class_name_label.pack(pady=10)
+        self.class_name_entry = ctk.CTkEntry(self.main_frame)
+        self.class_name_entry.insert(0, class_data[0])
+        self.class_name_entry.pack(pady=10)
+
+        self.coach_label = ctk.CTkLabel(self.main_frame, text="Тренер")
+        self.coach_label.pack(pady=10)
+        self.coach_combobox = ctk.CTkComboBox(self.main_frame, values=self.get_coaches_list())
+        self.coach_combobox.set(class_data[1])
+        self.coach_combobox.pack(pady=10)
+
+        self.update_button = ctk.CTkButton(self.main_frame, text="Обновить занятие", command=lambda: self.update_class(class_data[0]))
+        self.update_button.pack(pady=10)
+
+        self.delete_button = ctk.CTkButton(self.main_frame, text="Удалить занятие", command=lambda: self.delete_class(class_data[0]))
+        self.delete_button.pack(pady=10)
+
+        self.back_button = ctk.CTkButton(self.main_frame, text="Вернуться в главное меню", command=self.main_menu)
+        self.back_button.pack(pady=10)
+
+    def get_coaches_list(self):
+        coaches = get_coaches()
+        coaches_list = []
+        for coach in coaches:
+            coaches_list.append(f"{coach[1]} {coach[2]}")
+        return coaches_list
+
+    def update_class(self, class_id):
+        class_name = self.class_name_entry.get()
+        coach_name = self.coach_combobox.get()
+        coach_id = self.get_coach_id(coach_name)
+        update_class(class_id, class_name, coach_id)
+        messagebox.showinfo("Успех", "Занятие обновлено успешно!")
+
+    def delete_class(self, class_id):
+        delete_class(class_id)
+        messagebox.showinfo("Успех", "Занятие удалено успешно!")
+        self.main_menu()
+
+    def schedule_menu(self):
+        self.clear_window()
+
+        self.schedule_students_button = ctk.CTkButton(self.main_frame, text="Расписание студентов", command=self.view_students_schedule_window)
+        self.schedule_students_button.pack(pady=10)
+
+        self.schedule_coaches_button = ctk.CTkButton(self.main_frame, text="Расписание тренеров", command=self.view_coaches_schedule_window)
+        self.schedule_coaches_button.pack(pady=10)
+
+        self.back_button = ctk.CTkButton(self.main_frame, text="Вернуться в главное меню", command=self.main_menu)
+        self.back_button.pack(pady=10)
 
     def add_schedule_window(self):
         self.clear_window()
 
-        self.class_label = Label(self.root, text="Занятие")
-        self.class_label.pack()
-        self.class_combobox = ttk.Combobox(self.root, values=self.get_classes_list(), style="TCombobox")
-        self.class_combobox.pack()
+        self.class_label = ctk.CTkLabel(self.main_frame, text="Занятие")
+        self.class_label.pack(pady=10)
+        self.class_combobox = ctk.CTkComboBox(self.main_frame, values=self.get_classes_list())
+        self.class_combobox.pack(pady=10)
 
-        self.student_label = Label(self.root, text="Студент")
-        self.student_label.pack()
-        self.student_combobox = ttk.Combobox(self.root, values=self.get_students_list(), style="TCombobox")
-        self.student_combobox.pack()
+        self.student_label = ctk.CTkLabel(self.main_frame, text="Студент")
+        self.student_label.pack(pady=10)
+        self.student_combobox = ctk.CTkComboBox(self.main_frame, values=self.get_students_list())
+        self.student_combobox.pack(pady=10)
 
-        self.class_date_label = Label(self.root, text="Дата занятия")
-        self.class_date_label.pack()
-        self.cal = Calendar(self.root, selectmode="day", year=2022, month=5, day=22)
-        self.cal.pack()
+        self.class_date_label = ctk.CTkLabel(self.main_frame, text="Дата занятия")
+        self.class_date_label.pack(pady=10)
+        self.cal = Calendar(self.main_frame, selectmode="day")
+        self.cal.pack(pady=10)
 
-        self.class_time_label = Label(self.root, text="Время занятия")
-        self.class_time_label.pack()
-        self.time_combobox = ttk.Combobox(self.root, values=["1 урок", "2 урок", "3 урок", "4 урок", "5 урок", "6 урок", "7 урок", "8 урок", "9 урок", "10 урок"], style="TCombobox")
-        self.time_combobox.pack()
+        self.class_time_label = ctk.CTkLabel(self.main_frame, text="Время занятия")
+        self.class_time_label.pack(pady=10)
+        self.time_combobox = ctk.CTkComboBox(self.main_frame, values=["1 урок", "2 урок", "3 урок", "4 урок", "5 урок", "6 урок", "7 урок", "8 урок", "9 урок", "10 урок"])
+        self.time_combobox.pack(pady=10)
 
-        self.add_button = Button(self.root, text="Добавить расписание", command=self.add_schedule)
-        self.add_button.pack()
+        self.add_button = ctk.CTkButton(self.main_frame, text="Добавить расписание", command=self.add_schedule)
+        self.add_button.pack(pady=10)
 
-        self.back_button = Button(self.root, text="Вернуться в главное меню", command=self.show_main_menu)
-        self.back_button.pack()
+        self.back_button = ctk.CTkButton(self.main_frame, text="Вернуться в главное меню", command=self.main_menu)
+        self.back_button.pack(pady=10)
 
     def get_classes_list(self):
         classes = get_classes()
         classes_list = []
         for cls in classes:
-            classes_list.append(cls[1])  # добавляем название занятия в список
+            classes_list.append(cls[1])
         return classes_list
 
     def get_students_list(self):
         students = get_students()
         students_list = []
         for student in students:
-            students_list.append(student[1] + " " + student[2])  # добавляем имя и фамилию студента в список
+            students_list.append(f"{student[1]} {student[2]}")
         return students_list
 
     def get_student_id(self, student_name):
         students = get_students()
         for student in students:
-            full_name = student[1] + " " + student[2]  # Составляем полное имя студента из имени и фамилии
-            if full_name == student_name:  # Проверяем, соответствует ли полное имя студента заданному
-                return student[0]  # Возвращаем идентификатор студента
-        return None  # Если студент не найден, возвращаем None
+            full_name = f"{student[1]} {student[2]}"
+            if full_name == student_name:
+                return student[0]
+        return None
 
     def get_class_id(self, class_name):
         classes = get_classes()
         for cls in classes:
-            if cls[1] == class_name:  # Проверяем, соответствует ли название занятия заданному
-                return cls[0]  # Возвращаем идентификатор занятия
-        return None  # Если занятие не найдено, возвращаем None
+            if cls[1] == class_name:
+                return cls[0]
+        return None
+
+    def get_coach_id(self, coach_name):
+        coaches = get_coaches()
+        for coach in coaches:
+            full_name = f"{coach[1]} {coach[2]}"
+            if full_name == coach_name:
+                return coach[0]
+        return None
 
     def add_schedule(self):
         class_id = self.get_class_id(self.class_combobox.get())
@@ -396,42 +665,105 @@ class App:
         add_schedule(class_id, student_id, class_date, class_time)
         messagebox.showinfo("Успех", "Расписание добавлено успешно!")
 
-    def view_schedule_window(self):
+    def view_students_schedule_window(self):
         self.clear_window()
 
-        style = ttk.Style()
-        style.configure("Treeview",
-                        background="#D3D3D3",
-                        foreground="black",
-                        rowheight=25,
-                        fieldbackground="#D3D3D3")
-        style.map("Treeview",
-                  background=[('selected', '#347083')])
-
-        self.schedule_tree = ttk.Treeview(self.root, columns=("Класс", "Студент", "Дата", "Время"), style="Treeview")
-        self.schedule_tree.heading("#0", text="ID")
+        self.schedule_tree = ttk.Treeview(self.main_frame, columns=("Класс", "Студент", "Дата", "Время"), show="headings")
         self.schedule_tree.heading("Класс", text="Класс")
         self.schedule_tree.heading("Студент", text="Студент")
         self.schedule_tree.heading("Дата", text="Дата")
         self.schedule_tree.heading("Время", text="Время")
-        self.schedule_tree.pack(fill=BOTH, expand=1)
+        self.schedule_tree.pack(fill=BOTH, expand=True)
+
+        self.schedule_tree.bind("<Double-1>", self.on_schedule_double_click)
 
         schedules = get_schedule()
         for schedule in schedules:
-            self.schedule_tree.insert("", "end", text=schedule[0], values=(schedule[1], f"{schedule[2]} {schedule[3]}", schedule[4], schedule[5]))
+            self.schedule_tree.insert("", "end", values=(schedule[1], f"{schedule[2]} {schedule[3]}", schedule[4], schedule[5]))
 
-        self.back_button = Button(self.root, text="Вернуться в главное меню", command=self.show_main_menu)
-        self.back_button.pack()
+        self.back_button = ctk.CTkButton(self.main_frame, text="Вернуться в меню расписаний", command=self.schedule_menu)
+        self.back_button.pack(pady=10)
 
-    def clear_window(self):
-        for widget in self.root.winfo_children():
-            widget.destroy()
-
-    def show_main_menu(self):
+    def view_coaches_schedule_window(self):
         self.clear_window()
-        self.view_schedule_window()
 
-root = Tk()
-root.geometry("1300x600")  # Устанавливаем размер окна 1300x600 пикселей
+        self.schedule_tree = ttk.Treeview(self.main_frame, columns=("Класс", "Тренер", "Дата", "Время"), show="headings")
+        self.schedule_tree.heading("Класс", text="Класс")
+        self.schedule_tree.heading("Тренер", text="Тренер")
+        self.schedule_tree.heading("Дата", text="Дата")
+        self.schedule_tree.heading("Время", text="Время")
+        self.schedule_tree.pack(fill=BOTH, expand=True)
+
+        self.schedule_tree.bind("<Double-1>", self.on_schedule_double_click_coach)
+
+        schedules = get_schedule()
+        for schedule in schedules:
+            coach_name = f"{schedule[2]} {schedule[3]}"
+            self.schedule_tree.insert("", "end", values=(schedule[1], coach_name, schedule[4], schedule[5]))
+
+        self.back_button = ctk.CTkButton(self.main_frame, text="Вернуться в меню расписаний", command=self.schedule_menu)
+        self.back_button.pack(pady=10)
+
+    def on_schedule_double_click(self, event):
+        item = self.schedule_tree.selection()[0]
+        schedule_data = self.schedule_tree.item(item, "values")
+        self.edit_schedule_window(schedule_data)
+
+    def on_schedule_double_click_coach(self, event):
+        item = self.schedule_tree.selection()[0]
+        schedule_data = self.schedule_tree.item(item, "values")
+        self.edit_schedule_window(schedule_data)
+
+    def edit_schedule_window(self, schedule_data):
+        self.clear_window()
+
+        self.class_label = ctk.CTkLabel(self.main_frame, text="Занятие")
+        self.class_label.pack(pady=10)
+        self.class_combobox = ctk.CTkComboBox(self.main_frame, values=self.get_classes_list())
+        self.class_combobox.set(schedule_data[0])
+        self.class_combobox.pack(pady=10)
+
+        self.student_label = ctk.CTkLabel(self.main_frame, text="Студент")
+        self.student_label.pack(pady=10)
+        self.student_combobox = ctk.CTkComboBox(self.main_frame, values=self.get_students_list())
+        self.student_combobox.set(schedule_data[1])
+        self.student_combobox.pack(pady=10)
+
+        self.class_date_label = ctk.CTkLabel(self.main_frame, text="Дата занятия")
+        self.class_date_label.pack(pady=10)
+        self.cal = Calendar(self.main_frame, selectmode="day")
+        self.cal.set_date(schedule_data[2])
+        self.cal.pack(pady=10)
+
+        self.class_time_label = ctk.CTkLabel(self.main_frame, text="Время занятия")
+        self.class_time_label.pack(pady=10)
+        self.time_combobox = ctk.CTkComboBox(self.main_frame, values=["1 урок", "2 урок", "3 урок", "4 урок", "5 урок", "6 урок", "7 урок", "8 урок", "9 урок", "10 урок"])
+        self.time_combobox.set(schedule_data[3])
+        self.time_combobox.pack(pady=10)
+
+        self.update_button = ctk.CTkButton(self.main_frame, text="Обновить расписание", command=lambda: self.update_schedule(schedule_data[0]))
+        self.update_button.pack(pady=10)
+
+        self.delete_button = ctk.CTkButton(self.main_frame, text="Удалить расписание", command=lambda: self.delete_schedule(schedule_data[0]))
+        self.delete_button.pack(pady=10)
+
+        self.back_button = ctk.CTkButton(self.main_frame, text="Вернуться в главное меню", command=self.main_menu)
+        self.back_button.pack(pady=10)
+
+    def update_schedule(self, schedule_id):
+        class_id = self.get_class_id(self.class_combobox.get())
+        student_id = self.get_student_id(self.student_combobox.get())
+        class_date = self.cal.get_date()
+        class_time = self.time_combobox.get()
+        update_schedule(schedule_id, class_id, student_id, class_date, class_time)
+        messagebox.showinfo("Успех", "Расписание обновлено успешно!")
+
+    def delete_schedule(self, schedule_id):
+        delete_schedule(schedule_id)
+        messagebox.showinfo("Успех", "Расписание удалено успешно!")
+        self.main_menu()
+
+root = ctk.CTk()
+root.geometry("1300x600")
 app = App(root)
 root.mainloop()
