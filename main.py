@@ -1,24 +1,24 @@
-import psycopg2
+import sqlite3
 from customtkinter import *
 import customtkinter as ctk
 from tkinter import messagebox, ttk
 from tkcalendar import Calendar
 
+# Импортируем модули для добавления данных
+import add_student
+import add_coach
+import add_class
+import add_schedule
+
 # Подключение к базе данных
 def connect():
-    return psycopg2.connect(
-        database="duss",
-        user="postgres",
-        password="1212",
-        host="localhost",
-        port="5432"
-    )
+    return sqlite3.connect('duss.db')
 
 # Функции для работы с базой данных
-def add_student(first_name, last_name, date_of_birth, enrollment_date):
+def add_student_db(first_name, last_name, date_of_birth, enrollment_date):
     conn = connect()
     cur = conn.cursor()
-    cur.execute("INSERT INTO students (first_name, last_name, date_of_birth, enrollment_date) VALUES (%s, %s, %s, %s)",
+    cur.execute("INSERT INTO students (first_name, last_name, date_of_birth, enrollment_date) VALUES (?, ?, ?, ?)",
                 (first_name, last_name, date_of_birth, enrollment_date))
     conn.commit()
     conn.close()
@@ -34,7 +34,7 @@ def get_students():
 def update_student(student_id, first_name, last_name, date_of_birth, enrollment_date):
     conn = connect()
     cur = conn.cursor()
-    cur.execute("UPDATE students SET first_name=%s, last_name=%s, date_of_birth=%s, enrollment_date=%s WHERE student_id=%s",
+    cur.execute("UPDATE students SET first_name=?, last_name=?, date_of_birth=?, enrollment_date=? WHERE student_id=?",
                 (first_name, last_name, date_of_birth, enrollment_date, student_id))
     conn.commit()
     conn.close()
@@ -42,14 +42,14 @@ def update_student(student_id, first_name, last_name, date_of_birth, enrollment_
 def delete_student(student_id):
     conn = connect()
     cur = conn.cursor()
-    cur.execute("DELETE FROM students WHERE student_id=%s", (student_id,))
+    cur.execute("DELETE FROM students WHERE student_id=?", (student_id,))
     conn.commit()
     conn.close()
 
-def add_coach(first_name, last_name, specialty):
+def add_coach_db(first_name, last_name, specialty):
     conn = connect()
     cur = conn.cursor()
-    cur.execute("INSERT INTO coaches (first_name, last_name, specialty) VALUES (%s, %s, %s)",
+    cur.execute("INSERT INTO coaches (first_name, last_name, specialty) VALUES (?, ?, ?)",
                 (first_name, last_name, specialty))
     conn.commit()
     conn.close()
@@ -65,7 +65,7 @@ def get_coaches():
 def update_coach(coach_id, first_name, last_name, specialty):
     conn = connect()
     cur = conn.cursor()
-    cur.execute("UPDATE coaches SET first_name=%s, last_name=%s, specialty=%s WHERE coach_id=%s",
+    cur.execute("UPDATE coaches SET first_name=?, last_name=?, specialty=? WHERE coach_id=?",
                 (first_name, last_name, specialty, coach_id))
     conn.commit()
     conn.close()
@@ -73,14 +73,14 @@ def update_coach(coach_id, first_name, last_name, specialty):
 def delete_coach(coach_id):
     conn = connect()
     cur = conn.cursor()
-    cur.execute("DELETE FROM coaches WHERE coach_id=%s", (coach_id,))
+    cur.execute("DELETE FROM coaches WHERE coach_id=?", (coach_id,))
     conn.commit()
     conn.close()
 
-def add_class(class_name, coach_id):
+def add_class_db(class_name, coach_id):
     conn = connect()
     cur = conn.cursor()
-    cur.execute("INSERT INTO classes (class_name, coach_id) VALUES (%s, %s)", (class_name, coach_id))
+    cur.execute("INSERT INTO classes (class_name, coach_id) VALUES (?, ?)", (class_name, coach_id))
     conn.commit()
     conn.close()
 
@@ -95,7 +95,7 @@ def get_classes():
 def update_class(class_id, class_name, coach_id):
     conn = connect()
     cur = conn.cursor()
-    cur.execute("UPDATE classes SET class_name=%s, coach_id=%s WHERE class_id=%s",
+    cur.execute("UPDATE classes SET class_name=?, coach_id=? WHERE class_id=?",
                 (class_name, coach_id, class_id))
     conn.commit()
     conn.close()
@@ -103,15 +103,15 @@ def update_class(class_id, class_name, coach_id):
 def delete_class(class_id):
     conn = connect()
     cur = conn.cursor()
-    cur.execute("DELETE FROM classes WHERE class_id=%s", (class_id,))
+    cur.execute("DELETE FROM classes WHERE class_id=?", (class_id,))
     conn.commit()
     conn.close()
 
-def add_schedule(class_id, student_id, class_date, class_time):
+def add_schedule_db(class_id, student_id, class_date, class_time):
     if check_coach_availability(class_id, class_date, class_time):
         conn = connect()
         cur = conn.cursor()
-        cur.execute("INSERT INTO schedule (class_id, student_id, class_date, class_time) VALUES (%s, %s, %s, %s)",
+        cur.execute("INSERT INTO schedule (class_id, student_id, class_date, class_time) VALUES (?, ?, ?, ?)",
                     (class_id, student_id, class_date, class_time))
         conn.commit()
         conn.close()
@@ -130,7 +130,7 @@ def update_schedule(schedule_id, class_id, student_id, class_date, class_time):
     if check_coach_availability(class_id, class_date, class_time):
         conn = connect()
         cur = conn.cursor()
-        cur.execute("UPDATE schedule SET class_id=%s, student_id=%s, class_date=%s, class_time=%s WHERE schedule_id=%s",
+        cur.execute("UPDATE schedule SET class_id=?, student_id=?, class_date=?, class_time=? WHERE schedule_id=?",
                     (class_id, student_id, class_date, class_time, schedule_id))
         conn.commit()
         conn.close()
@@ -140,7 +140,7 @@ def update_schedule(schedule_id, class_id, student_id, class_date, class_time):
 def delete_schedule(schedule_id):
     conn = connect()
     cur = conn.cursor()
-    cur.execute("DELETE FROM schedule WHERE schedule_id=%s", (schedule_id,))
+    cur.execute("DELETE FROM schedule WHERE schedule_id=?", (schedule_id,))
     conn.commit()
     conn.close()
 
@@ -150,16 +150,16 @@ def check_coach_availability(class_id, class_date, class_time):
     cur.execute("SELECT coaches.coach_id FROM schedule "
                 "JOIN classes ON schedule.class_id = classes.class_id "
                 "JOIN coaches ON classes.coach_id = coaches.coach_id "
-                "WHERE classes.class_id=%s AND schedule.class_date=%s AND schedule.class_time=%s",
+                "WHERE classes.class_id=? AND schedule.class_date=? AND schedule.class_time=?",
                 (class_id, class_date, class_time))
     result = cur.fetchone()
     conn.close()
     return result is None
 
-def add_group(group_name):
+def add_group_db(group_name):
     conn = connect()
     cur = conn.cursor()
-    cur.execute("INSERT INTO groups (group_name) VALUES (%s)", (group_name,))
+    cur.execute("INSERT INTO groups (group_name) VALUES (?)", (group_name,))
     conn.commit()
     conn.close()
 
@@ -174,21 +174,21 @@ def get_groups():
 def update_group(group_id, group_name):
     conn = connect()
     cur = conn.cursor()
-    cur.execute("UPDATE groups SET group_name=%s WHERE group_id=%s", (group_name, group_id))
+    cur.execute("UPDATE groups SET group_name=? WHERE group_id=?", (group_name, group_id))
     conn.commit()
     conn.close()
 
 def delete_group(group_id):
     conn = connect()
     cur = conn.cursor()
-    cur.execute("DELETE FROM groups WHERE group_id=%s", (group_id,))
+    cur.execute("DELETE FROM groups WHERE group_id=?", (group_id,))
     conn.commit()
     conn.close()
 
-def add_diary_entry(group_id, entry_date, entry_content):
+def add_diary_entry_db(group_id, entry_date, entry_content):
     conn = connect()
     cur = conn.cursor()
-    cur.execute("INSERT INTO diaries (group_id, entry_date, entry_content) VALUES (%s, %s, %s)",
+    cur.execute("INSERT INTO diaries (group_id, entry_date, entry_content) VALUES (?, ?, ?)",
                 (group_id, entry_date, entry_content))
     conn.commit()
     conn.close()
@@ -196,7 +196,7 @@ def add_diary_entry(group_id, entry_date, entry_content):
 def get_diary_entries(group_id):
     conn = connect()
     cur = conn.cursor()
-    cur.execute("SELECT * FROM diaries WHERE group_id=%s", (group_id,))
+    cur.execute("SELECT * FROM diaries WHERE group_id=?", (group_id,))
     rows = cur.fetchall()
     conn.close()
     return rows
@@ -204,7 +204,7 @@ def get_diary_entries(group_id):
 def update_diary_entry(entry_id, entry_date, entry_content):
     conn = connect()
     cur = conn.cursor()
-    cur.execute("UPDATE diaries SET entry_date=%s, entry_content=%s WHERE entry_id=%s",
+    cur.execute("UPDATE diaries SET entry_date=?, entry_content=? WHERE entry_id=?",
                 (entry_date, entry_content, entry_id))
     conn.commit()
     conn.close()
@@ -212,7 +212,7 @@ def update_diary_entry(entry_id, entry_date, entry_content):
 def delete_diary_entry(entry_id):
     conn = connect()
     cur = conn.cursor()
-    cur.execute("DELETE FROM diaries WHERE entry_id=%s", (entry_id,))
+    cur.execute("DELETE FROM diaries WHERE entry_id=?", (entry_id,))
     conn.commit()
     conn.close()
 
@@ -284,41 +284,7 @@ class App:
             widget.destroy()
 
     def add_student_window(self):
-        self.clear_window()
-
-        self.first_name_label = ctk.CTkLabel(self.main_frame, text="Имя")
-        self.first_name_label.pack(pady=10)
-        self.first_name_entry = ctk.CTkEntry(self.main_frame)
-        self.first_name_entry.pack(pady=10)
-
-        self.last_name_label = ctk.CTkLabel(self.main_frame, text="Фамилия")
-        self.last_name_label.pack(pady=10)
-        self.last_name_entry = ctk.CTkEntry(self.main_frame)
-        self.last_name_entry.pack(pady=10)
-
-        self.dob_label = ctk.CTkLabel(self.main_frame, text="Дата рождения")
-        self.dob_label.pack(pady=10)
-        self.dob_entry = ctk.CTkEntry(self.main_frame)
-        self.dob_entry.pack(pady=10)
-
-        self.enrollment_label = ctk.CTkLabel(self.main_frame, text="Дата зачисления")
-        self.enrollment_label.pack(pady=10)
-        self.enrollment_entry = ctk.CTkEntry(self.main_frame)
-        self.enrollment_entry.pack(pady=10)
-
-        self.add_button = ctk.CTkButton(self.main_frame, text="Добавить студента", command=self.add_student)
-        self.add_button.pack(pady=10)
-
-        self.back_button = ctk.CTkButton(self.main_frame, text="Вернуться в главное меню", command=self.main_menu)
-        self.back_button.pack(pady=10)
-
-    def add_student(self):
-        first_name = self.first_name_entry.get()
-        last_name = self.last_name_entry.get()
-        date_of_birth = self.dob_entry.get()
-        enrollment_date = self.enrollment_entry.get()
-        add_student(first_name, last_name, date_of_birth, enrollment_date)
-        messagebox.showinfo("Успех", "Студент добавлен успешно!")
+        add_student.add_student_window()
 
     def view_students_window(self):
         self.clear_window()
@@ -335,6 +301,9 @@ class App:
         students = get_students()
         for student in students:
             self.students_tree.insert("", "end", values=(student[1], student[2], student[3], student[4]))
+
+        self.add_student_button = ctk.CTkButton(self.main_frame, text="Добавить студента", command=self.add_student_window)
+        self.add_student_button.pack(pady=10)
 
         self.back_button = ctk.CTkButton(self.main_frame, text="Вернуться в главное меню", command=self.main_menu)
         self.back_button.pack(pady=10)
@@ -394,35 +363,7 @@ class App:
         self.main_menu()
 
     def add_coach_window(self):
-        self.clear_window()
-
-        self.first_name_label = ctk.CTkLabel(self.main_frame, text="Имя")
-        self.first_name_label.pack(pady=10)
-        self.first_name_entry = ctk.CTkEntry(self.main_frame)
-        self.first_name_entry.pack(pady=10)
-
-        self.last_name_label = ctk.CTkLabel(self.main_frame, text="Фамилия")
-        self.last_name_label.pack(pady=10)
-        self.last_name_entry = ctk.CTkEntry(self.main_frame)
-        self.last_name_entry.pack(pady=10)
-
-        self.specialty_label = ctk.CTkLabel(self.main_frame, text="Специальность")
-        self.specialty_label.pack(pady=10)
-        self.specialty_entry = ctk.CTkEntry(self.main_frame)
-        self.specialty_entry.pack(pady=10)
-
-        self.add_button = ctk.CTkButton(self.main_frame, text="Добавить тренера", command=self.add_coach)
-        self.add_button.pack(pady=10)
-
-        self.back_button = ctk.CTkButton(self.main_frame, text="Вернуться в главное меню", command=self.main_menu)
-        self.back_button.pack(pady=10)
-
-    def add_coach(self):
-        first_name = self.first_name_entry.get()
-        last_name = self.last_name_entry.get()
-        specialty = self.specialty_entry.get()
-        add_coach(first_name, last_name, specialty)
-        messagebox.showinfo("Успех", "Тренер добавлен успешно!")
+        add_coach.add_coach_window()
 
     def view_coaches_window(self):
         self.clear_window()
@@ -438,6 +379,9 @@ class App:
         coaches = get_coaches()
         for coach in coaches:
             self.coaches_tree.insert("", "end", values=(coach[1], coach[2], coach[3]))
+
+        self.add_coach_button = ctk.CTkButton(self.main_frame, text="Добавить тренера", command=self.add_coach_window)
+        self.add_coach_button.pack(pady=10)
 
         self.back_button = ctk.CTkButton(self.main_frame, text="Вернуться в главное меню", command=self.main_menu)
         self.back_button.pack(pady=10)
@@ -490,29 +434,7 @@ class App:
         self.main_menu()
 
     def add_class_window(self):
-        self.clear_window()
-
-        self.class_name_label = ctk.CTkLabel(self.main_frame, text="Название занятия")
-        self.class_name_label.pack(pady=10)
-        self.class_name_entry = ctk.CTkEntry(self.main_frame)
-        self.class_name_entry.pack(pady=10)
-
-        self.coach_id_label = ctk.CTkLabel(self.main_frame, text="ID тренера")
-        self.coach_id_label.pack(pady=10)
-        self.coach_id_entry = ctk.CTkEntry(self.main_frame)
-        self.coach_id_entry.pack(pady=10)
-
-        self.add_button = ctk.CTkButton(self.main_frame, text="Добавить занятие", command=self.add_class)
-        self.add_button.pack(pady=10)
-
-        self.back_button = ctk.CTkButton(self.main_frame, text="Вернуться в главное меню", command=self.main_menu)
-        self.back_button.pack(pady=10)
-
-    def add_class(self):
-        class_name = self.class_name_entry.get()
-        coach_id = self.coach_id_entry.get()
-        add_class(class_name, coach_id)
-        messagebox.showinfo("Успех", "Занятие добавлено успешно!")
+        add_class.add_class_window()
 
     def view_classes_window(self):
         self.clear_window()
@@ -527,6 +449,9 @@ class App:
         classes = get_classes()
         for cls in classes:
             self.classes_tree.insert("", "end", values=(cls[1], f"{cls[2]} {cls[3]}"))
+
+        self.add_class_button = ctk.CTkButton(self.main_frame, text="Добавить занятие", command=self.add_class_window)
+        self.add_class_button.pack(pady=10)
 
         self.back_button = ctk.CTkButton(self.main_frame, text="Вернуться в главное меню", command=self.main_menu)
         self.back_button.pack(pady=10)
@@ -592,78 +517,7 @@ class App:
         self.back_button.pack(pady=10)
 
     def add_schedule_window(self):
-        self.clear_window()
-
-        self.class_label = ctk.CTkLabel(self.main_frame, text="Занятие")
-        self.class_label.pack(pady=10)
-        self.class_combobox = ctk.CTkComboBox(self.main_frame, values=self.get_classes_list())
-        self.class_combobox.pack(pady=10)
-
-        self.student_label = ctk.CTkLabel(self.main_frame, text="Студент")
-        self.student_label.pack(pady=10)
-        self.student_combobox = ctk.CTkComboBox(self.main_frame, values=self.get_students_list())
-        self.student_combobox.pack(pady=10)
-
-        self.class_date_label = ctk.CTkLabel(self.main_frame, text="Дата занятия")
-        self.class_date_label.pack(pady=10)
-        self.cal = Calendar(self.main_frame, selectmode="day")
-        self.cal.pack(pady=10)
-
-        self.class_time_label = ctk.CTkLabel(self.main_frame, text="Время занятия")
-        self.class_time_label.pack(pady=10)
-        self.time_combobox = ctk.CTkComboBox(self.main_frame, values=["1 урок", "2 урок", "3 урок", "4 урок", "5 урок", "6 урок", "7 урок", "8 урок", "9 урок", "10 урок"])
-        self.time_combobox.pack(pady=10)
-
-        self.add_button = ctk.CTkButton(self.main_frame, text="Добавить расписание", command=self.add_schedule)
-        self.add_button.pack(pady=10)
-
-        self.back_button = ctk.CTkButton(self.main_frame, text="Вернуться в главное меню", command=self.main_menu)
-        self.back_button.pack(pady=10)
-
-    def get_classes_list(self):
-        classes = get_classes()
-        classes_list = []
-        for cls in classes:
-            classes_list.append(cls[1])
-        return classes_list
-
-    def get_students_list(self):
-        students = get_students()
-        students_list = []
-        for student in students:
-            students_list.append(f"{student[1]} {student[2]}")
-        return students_list
-
-    def get_student_id(self, student_name):
-        students = get_students()
-        for student in students:
-            full_name = f"{student[1]} {student[2]}"
-            if full_name == student_name:
-                return student[0]
-        return None
-
-    def get_class_id(self, class_name):
-        classes = get_classes()
-        for cls in classes:
-            if cls[1] == class_name:
-                return cls[0]
-        return None
-
-    def get_coach_id(self, coach_name):
-        coaches = get_coaches()
-        for coach in coaches:
-            full_name = f"{coach[1]} {coach[2]}"
-            if full_name == coach_name:
-                return coach[0]
-        return None
-
-    def add_schedule(self):
-        class_id = self.get_class_id(self.class_combobox.get())
-        student_id = self.get_student_id(self.student_combobox.get())
-        class_date = self.cal.get_date()
-        class_time = self.time_combobox.get()
-        add_schedule(class_id, student_id, class_date, class_time)
-        messagebox.showinfo("Успех", "Расписание добавлено успешно!")
+        add_schedule.add_schedule_window()
 
     def view_students_schedule_window(self):
         self.clear_window()
@@ -680,6 +534,9 @@ class App:
         schedules = get_schedule()
         for schedule in schedules:
             self.schedule_tree.insert("", "end", values=(schedule[1], f"{schedule[2]} {schedule[3]}", schedule[4], schedule[5]))
+
+        self.add_schedule_button = ctk.CTkButton(self.main_frame, text="Добавить расписание", command=self.add_schedule_window)
+        self.add_schedule_button.pack(pady=10)
 
         self.back_button = ctk.CTkButton(self.main_frame, text="Вернуться в меню расписаний", command=self.schedule_menu)
         self.back_button.pack(pady=10)
@@ -700,6 +557,9 @@ class App:
         for schedule in schedules:
             coach_name = f"{schedule[2]} {schedule[3]}"
             self.schedule_tree.insert("", "end", values=(schedule[1], coach_name, schedule[4], schedule[5]))
+
+        self.add_schedule_button = ctk.CTkButton(self.main_frame, text="Добавить расписание", command=self.add_schedule_window)
+        self.add_schedule_button.pack(pady=10)
 
         self.back_button = ctk.CTkButton(self.main_frame, text="Вернуться в меню расписаний", command=self.schedule_menu)
         self.back_button.pack(pady=10)
